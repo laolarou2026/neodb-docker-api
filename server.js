@@ -1,88 +1,83 @@
-const express = require('express')
-const axios = require('axios')
-const app = express()
+const express = require('express');
+const axios = require('axios');
+const app = express();
 
-const PORT = 3000
-const NEODB_TOKEN = process.env.NEODB_TOKEN
-const NEODB_API = 'https://neodb.social/api'
+const PORT = 3000;
+const NEODB_TOKEN = process.env.NEODB_TOKEN;
+const BASE_URL = "https://neodb.social/api";
 
 const headers = {
   Authorization: `Bearer ${NEODB_TOKEN}`
-}
+};
 
-// 搜索书籍（兼容 Talebook 豆瓣格式）
+// 搜索书籍
 app.get('/v2/book/search', async (req, res) => {
   try {
-    const q = req.query.q
-    const { data } = await axios.get(`${NEODB_API}/search`, {
-      headers,
-      params: { q, category: 'book' }
-    })
-
-    const books = data.results.map(b => ({
-      id: b.uuid,
-      title: b.title,
-      author: b.authors || [],
-      publisher: b.publisher || '',
-      pubdate: b.pub_date || '',
-      isbn: b.isbn || '',
-      image: b.cover_image_url || '',
-      summary: b.brief || '',
-      rating: { average: b.rating || '0' }
-    }))
-
-    res.json({ count: books.length, books })
+    const q = req.query.q;
+    const r = await axios.get(`${BASE_URL}/search?category=book&q=${q}`, { headers });
+    res.json({
+      count: r.data.results.length,
+      books: r.data.results.map(i => ({
+        id: i.uuid,
+        title: i.title,
+        author: i.authors || [],
+        publisher: i.publisher || '',
+        pubdate: i.pub_date || '',
+        isbn: i.isbn || '',
+        image: i.cover_image_url || '',
+        summary: i.brief || '',
+        rating: { average: i.rating || 0 }
+      }))
+    });
   } catch (e) {
-    res.json({ count: 0, books: [] })
+    res.json({ count: 0, books: [] });
   }
-})
+});
 
-// ISBN 查询（Talebook 必用）
+// ISBN 查询
 app.get('/v2/book/isbn/:isbn', async (req, res) => {
   try {
-    const isbn = req.params.isbn
-    const { data } = await axios.get(`${NEODB_API}/search`, {
-      headers,
-      params: { q: isbn, category: 'book' }
-    })
-    if (data.results.length === 0) return res.status(404).json({})
-    const b = data.results[0]
+    const isbn = req.params.isbn;
+    const r = await axios.get(`${BASE_URL}/search?q=${isbn}&category=book`, { headers });
+    if (!r.data.results.length) return res.status(404).json({});
+    const i = r.data.results[0];
     res.json({
-      id: b.uuid,
-      title: b.title,
-      author: b.authors || [],
-      publisher: b.publisher || '',
-      pubdate: b.pub_date || '',
-      isbn: b.isbn || isbn,
-      image: b.cover_image_url || '',
-      summary: b.brief || '',
-      rating: { average: b.rating || '0' }
-    })
+      id: i.uuid,
+      title: i.title,
+      author: i.authors || [],
+      publisher: i.publisher || '',
+      pubdate: i.pub_date || '',
+      isbn: i.isbn || isbn,
+      image: i.cover_image_url || '',
+      summary: i.brief || '',
+      rating: { average: i.rating || 0 }
+    });
   } catch (e) {
-    res.status(500).json({})
+    res.status(500).json({});
   }
-})
+});
 
 // 书籍详情
 app.get('/v2/book/:id', async (req, res) => {
   try {
-    const { data } = await axios.get(`${NEODB_API}/item/${req.params.id}`, { headers })
+    const r = await axios.get(`${BASE_URL}/item/${req.params.id}`, { headers });
+    const i = r.data;
     res.json({
-      id: data.uuid,
-      title: data.title,
-      author: data.authors || [],
-      publisher: data.publisher || '',
-      pubdate: data.pub_date || '',
-      isbn: data.isbn || '',
-      image: data.cover_image_url || '',
-      summary: data.brief || '',
-      rating: { average: data.rating || '0' }
-    })
+      id: i.uuid,
+      title: i.title,
+      author: i.authors || [],
+      publisher: i.publisher || '',
+      pubdate: i.pub_date || '',
+      isbn: i.isbn || '',
+      image: i.cover_image_url || '',
+      summary: i.brief || '',
+      rating: { average: i.rating || 0 }
+    });
   } catch (e) {
-    res.status(500).json({})
+    res.status(500).json({});
   }
-})
+});
 
 app.listen(PORT, () => {
-  console.log(`NeoDB proxy running on port ${PORT}`)
-})
+  console.log("NeoDB API 代理运行在端口 3000");
+});
